@@ -4,29 +4,33 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler
 import os
 
-# Page configuration
+# Page config
 st.set_page_config(
     page_title="ChurnShield - Customer Retention Engine",
-    page_icon="📊",
     layout="wide"
 )
 
-# Load model and preprocessor (cached)
+# Title
+st.title("🛡️ ChurnShield – Customer Retention Intelligence Engine")
+
+# Load model and preprocessor
 @st.cache_resource
 def load_model():
-    if not os.path.exists("churn_model.pkl"):
-        st.error("churn_model.pkl not found in the current directory.")
+    model_path = "churn_model.pkl"
+    preprocessor_path = "preprocessor.pkl"
+
+    if not os.path.exists(model_path):
+        st.error(f"Model file not found: {model_path}")
         st.stop()
-    if not os.path.exists("preprocessor.pkl"):
-        st.error("preprocessor.pkl not found in the current directory.")
+    if not os.path.exists(preprocessor_path):
+        st.error(f"Preprocessor file not found: {preprocessor_path}")
         st.stop()
-    
+
     try:
-        model = joblib.load("churn_model.pkl")
-        preprocessor = joblib.load("preprocessor.pkl")
+        model = joblib.load(model_path)
+        preprocessor = joblib.load(preprocessor_path)
         return model, preprocessor
     except Exception as e:
         st.error(f"Error loading model files: {str(e)}")
@@ -34,14 +38,13 @@ def load_model():
 
 model, preprocessor = load_model()
 
-# Sidebar for inputs
+# Input Form
 st.sidebar.header("Customer Information")
 
 tenure = st.sidebar.slider("Tenure (months)", 0, 72, 12)
 monthly_charges = st.sidebar.number_input("Monthly Charges ($)", 0.0, 1000.0, 80.0)
 total_charges = st.sidebar.number_input("Total Charges ($)", 0.0, 10000.0, 960.0)
 
-# Auto-fill total charges if zero
 if total_charges == 0:
     total_charges = monthly_charges * tenure
 
@@ -57,7 +60,7 @@ payment_method = st.sidebar.selectbox(
 )
 internet_service = st.sidebar.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
 
-# Compute derived feature
+# Derived feature
 avg_monthly_spend = total_charges / (tenure + 1)
 
 # Prepare input data
@@ -75,8 +78,8 @@ input_df = pd.DataFrame([{
     'InternetService': internet_service
 }])
 
-# Tabs for organized UI
-tab1, tab2, tab3 = st.tabs(["Prediction", "Model Insights", "Business Impact"])
+# Tabs
+tab1, tab2, tab3 = st.tabs(["Prediction", "Feature Impact", "Business Impact"])
 
 # Tab 1: Prediction
 with tab1:
@@ -84,17 +87,15 @@ with tab1:
 
     if st.button("Predict Churn Risk"):
         try:
-            # Preprocess input
+            # Preprocess
             input_encoded = preprocessor.transform(input_df)
 
             # Predict
             churn_prob = model.predict_proba(input_encoded)[0, 1]
 
-            # Display prediction
-            st.subheader("Prediction Result")
+            # Display
             st.metric("Churn Probability", f"{churn_prob:.2%}")
 
-            # Risk level
             if churn_prob > 0.8:
                 st.error("High Risk of Churn")
             elif churn_prob > 0.5:
@@ -102,7 +103,7 @@ with tab1:
             else:
                 st.success("Low Risk of Churn")
 
-            # Retention recommendation
+            # Retention Action
             st.subheader("Recommended Action")
             if churn_prob > 0.8:
                 if contract == "Month-to-month":
@@ -114,41 +115,33 @@ with tab1:
             elif churn_prob > 0.5:
                 st.write("Send a check-in email with satisfaction survey")
             else:
-                st.write("No action needed. Continue nurturing the customer.")
+                st.write("No action needed. Continue nurturing.")
 
         except Exception as e:
             st.error(f"Prediction failed: {str(e)}")
     else:
-        st.info("Adjust customer details and click 'Predict Churn Risk' to get results.")
+        st.info("👈 Adjust inputs and click 'Predict Churn Risk'")
 
-# Tab 2: Model Insights
+# Tab 2: Simulated Feature Impact
 with tab2:
-    st.header("Model Insights")
+    st.header("Key Drivers of Churn")
 
-    st.write("""
-    This model was trained on historical customer data to identify patterns that lead to churn.
-    Below are the most important features influencing churn risk.
-    """)
-
-    # Simulated feature importance (replace with real SHAP if available)
     feature_importance = {
         'Contract': 0.3 if contract == "Month-to-month" else 0.05,
-        'CLV': 0.1 if clv < 500 else 0.02,
         'Tenure': 0.2 if tenure < 6 else 0.05,
+        'Monthly Charges': 0.1 if monthly_charges > 90 else 0.04,
         'Support Tickets': 0.15 if support_tickets > 3 else 0.03,
         'Days Since Interaction': 0.15 if days_since_interaction > 180 else 0.05,
-        'Monthly Charges': 0.1 if monthly_charges > 90 else 0.04,
-        'Internet Service': 0.1 if internet_service == "Fiber optic" else 0.03
+        'CLV': 0.1 if clv < 500 else 0.02,
     }
 
-    # Plot
     fig, ax = plt.subplots(figsize=(8, 5))
     features = list(feature_importance.keys())
     impacts = list(feature_importance.values())
     colors = ['red' if x > 0.1 else 'orange' if x > 0.05 else 'green' for x in impacts]
     ax.barh(features, impacts, color=colors)
     ax.set_xlabel("Estimated Impact on Churn Risk")
-    ax.set_title("Key Drivers of Churn")
+    ax.set_title("Feature Influence (Simulated)")
     ax.grid(axis='x', alpha=0.3)
     st.pyplot(fig)
 
@@ -156,22 +149,16 @@ with tab2:
 with tab3:
     st.header("Business Impact Analysis")
 
-    if 'churn_prob' in locals():
-        st.warning("Run a prediction first to see business impact.")
-    else:
+    if st.button("Calculate Impact") or 'churn_prob' in locals():
         try:
-            # Use latest prediction if available
-            if 'churn_prob' not in globals():
-                input_encoded = preprocessor.transform(input_df)
-                churn_prob = model.predict_proba(input_encoded)[0, 1]
+            input_encoded = preprocessor.transform(input_df)
+            churn_prob = model.predict_proba(input_encoded)[0, 1]
 
             revenue_at_risk = clv
             intervention_cost = 25 if churn_prob > 0.8 else 5
             expected_savings = revenue_at_risk * churn_prob * 0.7
             net_benefit = expected_savings - intervention_cost
             roi = (expected_savings / intervention_cost - 1) if intervention_cost > 0 else np.inf
-
-            st.write("This section estimates the financial impact of retention actions.")
 
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Revenue at Risk", f"${revenue_at_risk:,.0f}")
@@ -182,16 +169,12 @@ with tab3:
             if roi != np.inf:
                 st.metric("Estimated ROI", f"{roi:.1f}x")
             else:
-                st.metric("Estimated ROI", "Infinite (no cost)")
+                st.metric("Estimated ROI", "Infinite")
 
-            # ROI explanation
-            st.write("""
-            **ROI** = (Expected Savings / Intervention Cost) - 1  
-            A value above 1.0x means the action is expected to generate more value than it costs.
-            """)
-
-        except:
-            st.info("Run a prediction to view business impact.")
+        except Exception as e:
+            st.error(f"Calculation failed: {str(e)}")
+    else:
+        st.info("Click 'Calculate Impact' to see financial results.")
 
 # Footer
 st.markdown("---")
