@@ -1,0 +1,9 @@
+{
+    "Accuracy": 0.9297,
+    "Precision": 0.25,
+    "Recall": 0.0323,
+    "F1": 0.0571,
+    "AUC-ROC": 0.7709,
+    "AUC-PR": 0.2112,
+    "Log Loss": 0.2271
+}

@@ -1,0 +1,8 @@
+
+Business Impact Report
+----------------------
+Revenue at Risk: $469,052
+Intervention Cost: $60
+Expected Revenue Saved: $228,898
+Net Benefit: $228,838
+ROI: 3813.96x
